@@ -408,8 +408,21 @@ export default function App() {
 
   const handleAdminLogout = async () => {
     if (supabase) {
-      await supabase.auth.signOut();
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.error("Error signing out from Supabase:", err);
+      }
     }
+    try {
+      localStorage.removeItem('mh_admin_auth');
+      localStorage.removeItem('mh_owner_gateway_active');
+    } catch (e) {
+      console.warn("Could not clear localStorage credentials:", e);
+    }
+    setIsAdminAuthorized(false);
+    setShowOwnerGateway(false);
+    setActiveView('home');
     triggerToast("Logged out of Admin Panel and locked secure gateway.");
     window.location.hash = '';
   };
