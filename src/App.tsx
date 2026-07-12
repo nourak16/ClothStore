@@ -314,27 +314,6 @@ export default function App() {
   });
 
   const [showOwnerGateway, setShowOwnerGateway] = useState<boolean>(() => {
-    // Check if query parameter has the matching secret
-    const params = new URLSearchParams(window.location.search);
-    const providedSecret = params.get('secret') || params.get('key');
-    let currentSecretKey = 'owner123'; try { currentSecretKey = localStorage.getItem('mh_secret_access_key') || 'owner123'; } catch(e) {}
-    
-    // If exact secret matches, allow entry, persist it, and clear URL
-    if (providedSecret === currentSecretKey) {
-      try { localStorage.setItem('mh_owner_gateway_active', 'true'); } catch(e) {}
-      try {
-        const url = new URL(window.location.href);
-        url.searchParams.delete('secret');
-        url.searchParams.delete('key');
-        url.hash = '#admin';
-        window.history.replaceState({}, '', url.toString());
-        window.location.hash = '#admin';
-      } catch (e) {
-        console.error(e);
-      }
-      return true;
-    }
-    
     const isOwnerHash = window.location.hash === '#secure-owner-console' || window.location.hash === '#orders' || window.location.hash === '#admin';
     let isGatewayActive = false; try { isGatewayActive = localStorage.getItem('mh_owner_gateway_active') === 'true'; } catch(e) {}
     
@@ -1294,6 +1273,35 @@ export default function App() {
 
   // Handle URL hash changes for deep linking
   useEffect(() => {
+    // Check if query parameter has the matching secret on mount
+    const params = new URLSearchParams(window.location.search);
+    const providedSecret = params.get('secret') || params.get('key');
+    let currentSecretKey = 'owner123';
+    try {
+      currentSecretKey = localStorage.getItem('mh_secret_access_key') || 'owner123';
+    } catch (e) {}
+
+    if (providedSecret === currentSecretKey) {
+      try {
+        localStorage.setItem('mh_owner_gateway_active', 'true');
+      } catch (e) {}
+      setShowOwnerGateway(true);
+      setActiveView('admin');
+      setSelectedProduct(null);
+      
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('secret');
+        url.searchParams.delete('key');
+        url.hash = '#admin';
+        window.history.replaceState({}, '', url.toString());
+      } catch (e) {
+        console.error(e);
+      }
+      isInitialMount.current = false;
+      return;
+    }
+
     const handleRoute = () => {
       const hash = window.location.hash;
       if (hash.startsWith('#product-')) {
