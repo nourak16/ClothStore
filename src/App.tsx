@@ -326,7 +326,9 @@ export default function App() {
         const url = new URL(window.location.href);
         url.searchParams.delete('secret');
         url.searchParams.delete('key');
+        url.hash = '#admin';
         window.history.replaceState({}, '', url.toString());
+        window.location.hash = '#admin';
       } catch (e) {
         console.error(e);
       }
