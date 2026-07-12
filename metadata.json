@@ -1,0 +1,6 @@
+{
+  "name": "M&H - Elevated Essentials",
+  "description": "A premium e-commerce platform showcasing sustainable, timeless fashion with WhatsApp checkout integration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

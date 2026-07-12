@@ -1,0 +1,176 @@
+[
+  {
+    "id": 101,
+    "name": "Premium Cotton Tee",
+    "category": "T-Shirts",
+    "price": 35.00,
+    "description": "The ultimate white tee. Crafted from heavy 240gsm organic cotton for a structured drape that holds its shape. Available in White, Off-White, and Cream.",
+    "image": "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=800&auto=format&fit=crop",
+    "images": [
+      "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=800&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1581655353564-df123a1eb820?q=80&w=800&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1562157873-818bc0726f68?q=80&w=800&auto=format&fit=crop"
+    ],
+    "colors": [
+      { "name": "White", "hex": "#FFFFFF", "image": "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=800&auto=format&fit=crop" },
+      { "name": "Black", "hex": "#000000", "image": "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?q=80&w=800&auto=format&fit=crop" },
+      { "name": "Cream", "hex": "#F5F5DC", "image": "https://images.unsplash.com/photo-1562157873-818bc0726f68?q=80&w=800&auto=format&fit=crop" }
+    ]
+  },
+  {
+    "id": 102,
+    "name": "Heavyweight Boxy Tee",
+    "category": "T-Shirts",
+    "price": 45.00,
+    "originalPrice": 55.00,
+    "description": "A relaxed, drop-shoulder fit in jet black. Pre-shrunk and garment dyed for a soft, worn-in feel.",
+    "image": "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?q=80&w=800&auto=format&fit=crop",
+    "images": [
+      "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?q=80&w=800&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1576566588028-4147f3842f27?q=80&w=800&auto=format&fit=crop"
+    ],
+    "colors": [
+      { "name": "Black", "hex": "#1a1a1a", "image": "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?q=80&w=800&auto=format&fit=crop" },
+      { "name": "Charcoal", "hex": "#36454F", "image": "https://images.unsplash.com/photo-1576566588028-4147f3842f27?q=80&w=800&auto=format&fit=crop" }
+    ]
+  },
+  {
+    "id": 103,
+    "name": "Vintage Wash Graphic Tee",
+    "category": "T-Shirts",
+    "price": 40.00,
+    "description": "Inspired by 90s band merch, this tee features a cracked ink print and a subtle acid wash finish.",
+    "image": "https://images.unsplash.com/photo-1576566588028-4147f3842f27?q=80&w=800&auto=format&fit=crop",
+    "images": [
+      "https://images.unsplash.com/photo-1503342394128-c104d54dba01?q=80&w=800&auto=format&fit=crop"
+    ]
+  },
+  {
+    "id": 104,
+    "name": "Striped Sailor Long Sleeve",
+    "category": "T-Shirts",
+    "price": 48.00,
+    "description": "Classic Breton stripes on soft jersey cotton. A versatile layering piece for transitional weather.",
+    "image": "https://images.unsplash.com/photo-1503342394128-c104d54dba01?q=80&w=800&auto=format&fit=crop"
+  },
+  {
+    "id": 201,
+    "name": "Distressed Blue Denim",
+    "category": "Pants",
+    "price": 45.00,
+    "description": "Classic blue jeans featuring a relaxed fit and subtle distressed detailing on the knee.",
+    "image": "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?q=80&w=800&auto=format&fit=crop"
+  },
+  {
+    "id": 202,
+    "name": "Dark Wash Mom Jeans",
+    "category": "Pants",
+    "price": 50.00,
+    "description": "High-waisted dark blue denim with a tapered leg for a flattering vintage silhouette.",
+    "image": "https://images.unsplash.com/photo-1542272604-787c3835535d?q=80&w=800&auto=format&fit=crop"
+  },
+  {
+    "id": 203,
+    "name": "Light Wash Straight Leg",
+    "category": "Pants",
+    "price": 48.00,
+    "description": "Essential light blue jeans with a comfortable straight leg cut. Perfect for everyday wear.",
+    "image": "https://images.unsplash.com/photo-1582562124811-c09040d0a901?q=80&w=800&auto=format&fit=crop"
+  },
+  {
+    "id": 204,
+    "name": "Acid Wash Vintage Jeans",
+    "category": "Pants",
+    "price": 55.00,
+    "description": "Statement acid wash denim with a retro 80s inspired look and relaxed fit.",
+    "image": "https://images.unsplash.com/photo-1604176354204-9268737828e4?q=80&w=800&auto=format&fit=crop"
+  },
+  {
+    "id": 205,
+    "name": "Olive Green Chinos",
+    "category": "Pants",
+    "price": 42.00,
+    "description": "Versatile olive green trousers made from soft cotton twill. A great alternative to denim.",
+    "image": "https://images.unsplash.com/photo-1479064555552-3ef4979f8908?q=80&w=800&auto=format&fit=crop"
+  },
+  {
+    "id": 206,
+    "name": "Grey Stone Wash Jeans",
+    "category": "Pants",
+    "price": 52.00,
+    "description": "Edgy grey stone wash denim with a slim-straight fit. Adds texture to any outfit.",
+    "image": "https://images.unsplash.com/photo-1511556532299-8f662fc26c06?q=80&w=800&auto=format&fit=crop"
+  },
+  {
+    "id": 301,
+    "name": "Oversized Wool Blazer",
+    "category": "Jackets",
+    "price": 250.00,
+    "description": "Structured yet slouchy, this wool-blend blazer adds instant polish. Features padded shoulders and deep pockets.",
+    "image": "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?q=80&w=800&auto=format&fit=crop",
+    "colors": [
+      { "name": "Grey", "hex": "#808080", "image": "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?q=80&w=800&auto=format&fit=crop" }
+    ]
+  },
+  {
+    "id": 302,
+    "name": "Classic Denim Jacket",
+    "category": "Jackets",
+    "price": 140.00,
+    "description": "The timeless trucker jacket in a medium vintage wash. Durable, rugged, and gets better with age.",
+    "image": "https://images.unsplash.com/photo-1523205565295-f8e91625443b?q=80&w=800&auto=format&fit=crop"
+  },
+  {
+    "id": 303,
+    "name": "Suede Bomber Jacket",
+    "category": "Jackets",
+    "price": 320.00,
+    "description": "Luxurious genuine suede in a rich tan hue. Finished with ribbed cuffs and silver hardware.",
+    "image": "https://images.unsplash.com/photo-1559551409-dadc959f76b8?q=80&w=800&auto=format&fit=crop"
+  },
+  {
+    "id": 304,
+    "name": "Technical Shell Coat",
+    "category": "Jackets",
+    "price": 180.00,
+    "originalPrice": 220.00,
+    "description": "A lightweight, waterproof parka shell designed for layering. Features a storm hood and sealed seams.",
+    "image": "https://images.unsplash.com/photo-1544022613-e87ca75a784a?q=80&w=800&auto=format&fit=crop"
+  },
+  {
+    "id": 401,
+    "name": "Minimalist Leather Sneaker",
+    "category": "Shoes",
+    "price": 150.00,
+    "description": "Handcrafted from full-grain white leather with a durable rubber cupsole. Clean lines for everyday wear.",
+    "image": "https://images.unsplash.com/photo-1560769629-975e13f0c470?q=80&w=800&auto=format&fit=crop",
+    "images": [
+      "https://images.unsplash.com/photo-1560769629-975e13f0c470?q=80&w=800&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1607522370275-f14206abe5d3?q=80&w=800&auto=format&fit=crop"
+    ]
+  },
+  {
+    "id": 402,
+    "name": "Chunky Penny Loafer",
+    "category": "Shoes",
+    "price": 180.00,
+    "description": "A modern twist on a classic. Polished black leather with a substantial lug sole for added height and attitude.",
+    "image": "https://images.unsplash.com/photo-1533867617858-e7b97e0605df?q=80&w=800&auto=format&fit=crop"
+  },
+  {
+    "id": 403,
+    "name": "Leather Chelsea Boot",
+    "category": "Shoes",
+    "price": 210.00,
+    "description": "Sleek ankle boots with elastic side panels and a pull tab. Made from premium Italian leather.",
+    "image": "https://images.unsplash.com/photo-1608231387042-66d1773070a5?q=80&w=800&auto=format&fit=crop"
+  },
+  {
+    "id": 404,
+    "name": "Canvas High Top",
+    "category": "Shoes",
+    "price": 85.00,
+    "description": "Vintage-inspired canvas trainers with a vulcanized rubber sole. The weekend essential.",
+    "image": "https://images.unsplash.com/photo-1607522370275-f14206abe5d3?q=80&w=800&auto=format&fit=crop"
+  }
+]
