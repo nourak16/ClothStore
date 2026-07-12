@@ -1779,7 +1779,7 @@ export default function App() {
                     </a>
                   </li>
 
-                  {showOwnerGateway && (
+                  {(showOwnerGateway && isAdminAuthorized) && (
                     <li>
                       <a 
                         className={`nav-link ${activeView === 'admin' ? 'active' : ''}`} 
