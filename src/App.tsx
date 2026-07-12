@@ -338,6 +338,9 @@ export default function App() {
   const [authPassword, setAuthPassword] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
+  const [authEmailFocused, setAuthEmailFocused] = useState(false);
+  const [authPasswordFocused, setAuthPasswordFocused] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (!supabase) return;
@@ -2069,112 +2072,323 @@ export default function App() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: '80px 16px',
-                background: 'linear-gradient(135deg, var(--bg-body) 0%, var(--bg-card) 100%)',
-                minHeight: 'calc(100vh - var(--header-height) - 100px)'
+                padding: '100px 16px',
+                background: 'radial-gradient(circle at center, var(--bg-card) 0%, var(--bg-body) 100%)',
+                minHeight: 'calc(100vh - var(--header-height) - 100px)',
+                position: 'relative',
+                overflow: 'hidden'
               }}>
+                {/* Decorative premium ambient glow */}
+                <div style={{
+                  position: 'absolute',
+                  width: '320px',
+                  height: '320px',
+                  background: 'rgba(147, 127, 99, 0.04)',
+                  filter: 'blur(120px)',
+                  top: '15%',
+                  left: '10%',
+                  pointerEvents: 'none'
+                }} />
+                <div style={{
+                  position: 'absolute',
+                  width: '380px',
+                  height: '380px',
+                  background: 'rgba(147, 127, 99, 0.04)',
+                  filter: 'blur(140px)',
+                  bottom: '15%',
+                  right: '10%',
+                  pointerEvents: 'none'
+                }} />
+
                 <div style={{
                   background: 'var(--bg-card)',
                   border: '1px solid var(--border)',
-                  borderRadius: '16px',
-                  padding: '40px',
-                  maxWidth: '440px',
+                  borderRadius: '24px',
+                  padding: '48px 40px',
+                  maxWidth: '450px',
                   width: '100%',
-                  boxShadow: '0 10px 30px rgba(0,0,0,0.04)',
-                  textAlign: 'center'
+                  boxShadow: '0 20px 50px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.01)',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  zIndex: 1
                 }}>
+                  {/* Fine metallic/gold accent line at the very top */}
+                  <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: '4px',
+                    background: 'linear-gradient(90deg, var(--accent) 0%, var(--accent-hover) 100%)'
+                  }} />
+
+                  {/* Brand Subtitle Tag */}
+                  <div style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '0.6875rem',
+                    fontWeight: 600,
+                    letterSpacing: '0.25em',
+                    color: 'var(--accent)',
+                    textTransform: 'uppercase',
+                    marginBottom: '18px',
+                    fontFamily: 'var(--font-body)'
+                  }}>
+                    <Sparkles size={11} />
+                    M&H ATELIER • PORTAL
+                  </div>
+
+                  {/* Lock circle icon with dashed layout & shadow */}
                   <div style={{
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    width: '64px',
-                    height: '64px',
-                    background: 'rgba(163, 107, 94, 0.08)',
-                    color: 'var(--accent)',
+                    width: '76px',
+                    height: '76px',
+                    background: 'var(--bg-body)',
+                    border: '1px solid var(--border)',
                     borderRadius: '50%',
-                    marginBottom: '24px'
+                    marginBottom: '28px',
+                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.02), inset 0 2px 4px rgba(255, 255, 255, 0.8)',
+                    position: 'relative'
                   }}>
-                    <Lock size={28} />
+                    <div style={{
+                      position: 'absolute',
+                      inset: '4px',
+                      borderRadius: '50%',
+                      border: '1px dashed var(--accent)',
+                      opacity: 0.35
+                    }} />
+                    <Lock size={26} style={{ color: 'var(--accent)' }} />
                   </div>
-                  <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.75rem', fontWeight: 700, margin: '0 0 12px 0' }}>Admin Console Access</h2>
-                  <p style={{ fontSize: '0.875rem', color: 'var(--secondary)', lineHeight: 1.6, marginBottom: '24px' }}>
-                    This console displays customer details, contact phone numbers, and delivery addresses. Please authenticate with your passcode to proceed.
+
+                  <h2 style={{ 
+                    fontFamily: 'var(--font-heading)', 
+                    fontSize: '2.25rem', 
+                    fontWeight: 400, 
+                    margin: '0 0 8px 0',
+                    color: 'var(--primary)',
+                    letterSpacing: '0.02em',
+                    lineHeight: 1.2
+                  }}>
+                    Admin Console
+                  </h2>
+                  <p style={{ 
+                    fontFamily: 'var(--font-body)',
+                    fontSize: '0.85rem', 
+                    color: 'var(--secondary)', 
+                    lineHeight: 1.6, 
+                    marginBottom: '32px',
+                    padding: '0 8px'
+                  }}>
+                    Enter your authorized credentials to access customer details, order logs, inventory controls, and system options.
                   </p>
 
-                  <form onSubmit={handleAdminLogin} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <form onSubmit={handleAdminLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    
+                    {/* Admin Email Field */}
                     <div style={{ textAlign: 'left' }}>
-                      <label style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--secondary)', display: 'block', marginBottom: '6px' }}>Admin Email</label>
-                      <input 
-                        type="email"
-                        value={authEmail}
-                        onChange={(e) => setAuthEmail(e.target.value)}
-                        placeholder="admin@example.com"
-                        style={{
-                          width: '100%',
-                          padding: '12px 16px',
-                          borderRadius: '8px',
-                          border: authError ? '1.5px solid #EF4444' : '1px solid var(--border)',
-                          background: 'var(--bg-body)',
-                          color: 'var(--primary)',
-                          fontSize: '0.9rem',
-                          outline: 'none',
-                          transition: 'border-color 0.2s',
-                          marginBottom: '12px'
-                        }}
-                        autoFocus
-                      />
-                      <label style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--secondary)', display: 'block', marginBottom: '6px' }}>Password</label>
-                      <input 
-                        type="password"
-                        value={authPassword}
-                        onChange={(e) => setAuthPassword(e.target.value)}
-                        placeholder="••••••••"
-                        style={{
-                          width: '100%',
-                          padding: '12px 16px',
-                          borderRadius: '8px',
-                          border: authError ? '1.5px solid #EF4444' : '1px solid var(--border)',
-                          background: 'var(--bg-body)',
-                          color: 'var(--primary)',
-                          fontSize: '1rem',
-                          fontFamily: 'monospace',
-                          letterSpacing: '0.125em',
-                          outline: 'none',
-                          transition: 'border-color 0.2s'
-                        }}
-                      />
+                      <label style={{ 
+                        fontSize: '0.725rem', 
+                        fontWeight: 600, 
+                        textTransform: 'uppercase', 
+                        letterSpacing: '0.12em', 
+                        color: 'var(--secondary)', 
+                        display: 'block', 
+                        marginBottom: '8px' 
+                      }}>
+                        Admin Email
+                      </label>
+                      <div style={{
+                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center'
+                      }}>
+                        <span style={{
+                          position: 'absolute',
+                          left: '16px',
+                          color: authEmailFocused ? 'var(--accent)' : 'var(--secondary)',
+                          transition: 'color 0.3s ease',
+                          display: 'flex',
+                          alignItems: 'center',
+                          pointerEvents: 'none'
+                        }}>
+                          <Mail size={18} />
+                        </span>
+                        <input 
+                          type="email"
+                          value={authEmail}
+                          onChange={(e) => setAuthEmail(e.target.value)}
+                          onFocus={() => setAuthEmailFocused(true)}
+                          onBlur={() => setAuthEmailFocused(false)}
+                          placeholder="admin@mhatelier.com"
+                          style={{
+                            width: '100%',
+                            padding: '14px 16px 14px 48px',
+                            borderRadius: '12px',
+                            border: authError ? '1.5px solid #EF4444' : authEmailFocused ? '1.5px solid var(--accent)' : '1px solid var(--border)',
+                            background: 'var(--bg-body)',
+                            color: 'var(--primary)',
+                            fontSize: '0.925rem',
+                            outline: 'none',
+                            transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                            boxShadow: authEmailFocused ? '0 0 0 4px rgba(147, 127, 99, 0.12)' : 'none'
+                          }}
+                          autoFocus
+                        />
+                      </div>
+                    </div>
+
+                    {/* Password Field */}
+                    <div style={{ textAlign: 'left' }}>
+                      <label style={{ 
+                        fontSize: '0.725rem', 
+                        fontWeight: 600, 
+                        textTransform: 'uppercase', 
+                        letterSpacing: '0.12em', 
+                        color: 'var(--secondary)', 
+                        display: 'block', 
+                        marginBottom: '8px' 
+                      }}>
+                        Secure Password
+                      </label>
+                      <div style={{
+                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center'
+                      }}>
+                        <span style={{
+                          position: 'absolute',
+                          left: '16px',
+                          color: authPasswordFocused ? 'var(--accent)' : 'var(--secondary)',
+                          transition: 'color 0.3s ease',
+                          display: 'flex',
+                          alignItems: 'center',
+                          pointerEvents: 'none'
+                        }}>
+                          <Key size={18} />
+                        </span>
+                        <input 
+                          type={showPassword ? "text" : "password"}
+                          value={authPassword}
+                          onChange={(e) => setAuthPassword(e.target.value)}
+                          onFocus={() => setAuthPasswordFocused(true)}
+                          onBlur={() => setAuthPasswordFocused(false)}
+                          placeholder="••••••••"
+                          style={{
+                            width: '100%',
+                            padding: '14px 48px 14px 48px',
+                            borderRadius: '12px',
+                            border: authError ? '1.5px solid #EF4444' : authPasswordFocused ? '1.5px solid var(--accent)' : '1px solid var(--border)',
+                            background: 'var(--bg-body)',
+                            color: 'var(--primary)',
+                            fontSize: showPassword ? '0.925rem' : '1.1rem',
+                            fontFamily: showPassword ? 'var(--font-body)' : 'monospace',
+                            letterSpacing: showPassword ? 'normal' : '0.125em',
+                            outline: 'none',
+                            transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                            boxShadow: authPasswordFocused ? '0 0 0 4px rgba(147, 127, 99, 0.12)' : 'none'
+                          }}
+                        />
+                        <button 
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          style={{
+                            position: 'absolute',
+                            right: '14px',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: 'var(--secondary)',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            letterSpacing: '0.05em',
+                            textTransform: 'uppercase',
+                            padding: '6px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'color 0.2s',
+                            outline: 'none'
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+                          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--secondary)')}
+                          title={showPassword ? "Hide password" : "Show password"}
+                        >
+                          {showPassword ? "Hide" : "Show"}
+                        </button>
+                      </div>
+                      
                       {authError && (
-                        <p style={{ color: '#EF4444', fontSize: '0.75rem', marginTop: '6px', marginBottom: 0 }}>
-                          {authError}
-                        </p>
+                        <div style={{ 
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          color: '#EF4444', 
+                          fontSize: '0.8rem', 
+                          marginTop: '12px', 
+                          padding: '10px 14px',
+                          background: 'rgba(239, 68, 68, 0.06)',
+                          borderRadius: '8px',
+                          border: '1px solid rgba(239, 68, 68, 0.15)'
+                        }}>
+                          <span style={{ display: 'inline-flex', flexShrink: 0 }}>⚠️</span>
+                          <span>{authError}</span>
+                        </div>
                       )}
                     </div>
+
                     <button 
                       type="submit"
                       disabled={authLoading}
                       style={{
-                        background: 'var(--primary)',
-                        color: 'var(--bg-base)',
+                        background: authLoading ? 'var(--secondary)' : 'var(--accent)',
+                        color: '#FFFFFF',
                         border: 'none',
-                        borderRadius: '8px',
-                        padding: '14px',
-                        fontSize: '0.9375rem',
+                        borderRadius: '12px',
+                        padding: '15px',
+                        fontSize: '0.95rem',
                         fontWeight: 600,
+                        letterSpacing: '0.08em',
+                        textTransform: 'uppercase',
                         cursor: authLoading ? 'not-allowed' : 'pointer',
-                        opacity: authLoading ? 0.7 : 1,
+                        transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        gap: '8px',
-                        marginTop: '4px'
+                        gap: '10px',
+                        marginTop: '10px',
+                        boxShadow: '0 8px 20px rgba(147, 127, 99, 0.15)'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!authLoading) {
+                          e.currentTarget.style.background = 'var(--accent-hover)';
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                          e.currentTarget.style.boxShadow = '0 12px 24px rgba(147, 127, 99, 0.25)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!authLoading) {
+                          e.currentTarget.style.background = 'var(--accent)';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 8px 20px rgba(147, 127, 99, 0.15)';
+                        }
                       }}
                     >
-                      {authLoading ? 'Authenticating...' : 'Secure Login'}
-                      {!authLoading && <Lock size={16} />}
+                      {authLoading ? (
+                        <>
+                          <RefreshCw size={16} className="animate-spin" />
+                          Authenticating...
+                        </>
+                      ) : (
+                        <>
+                          <span>Access Admin Console</span>
+                          <Lock size={15} />
+                        </>
+                      )}
                     </button>
                   </form>
-
-
                 </div>
               </div>
             ) : (
