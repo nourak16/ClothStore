@@ -158,6 +158,7 @@ export default function App() {
   const [isProductsDropdownOpen, setIsProductsDropdownOpen] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showCart, setShowCart] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   
   // Filtering & Sorting state
   const [activeCategory, setActiveCategory] = useState<string>('All');
@@ -1038,12 +1039,18 @@ export default function App() {
     setToastMessage(msg);
   };
 
-  // Close menus on scroll
+  // Close menus on scroll & track scrolled position
   useEffect(() => {
     const handleScroll = () => {
       setIsProductsDropdownOpen(false);
       setShowPriceFilter(false);
+      if (window.scrollY > 10) {
+        setScrolled(true);
+      } else {
+        setScrolled(false);
+      }
     };
+    handleScroll();
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -1676,7 +1683,7 @@ export default function App() {
       )}
 
       {/* Sticky Header */}
-      <header className="header sticky" id="header">
+      <header className={`header sticky ${scrolled ? 'is-scrolled' : ''}`} id="header">
         <div className="container header-inner">
           
           {/* Hamburger button for mobile menu toggling */}
@@ -1891,7 +1898,7 @@ export default function App() {
       </header>
 
       {/* Main Single Page Content Section */}
-      <div style={{ paddingTop: 'var(--header-height)' }}>
+      <div>
         
         {activeView === 'home' ? (
           <div className="view-section">
@@ -2066,7 +2073,7 @@ export default function App() {
             </main>
           </div>
         ) : activeView === 'admin' ? (
-          <div className="view-section" style={{ minHeight: 'calc(100vh - var(--header-height) - 100px)' }}>
+          <div className="view-section" style={{ paddingTop: 'var(--header-height)', minHeight: 'calc(100vh - 100px)' }}>
             {!isAdminAuthorized ? (
               <div style={{
                 display: 'flex',

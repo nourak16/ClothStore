@@ -63,12 +63,13 @@ body {
 }
 
 [data-theme="dark"] .header {
-    background: rgba(18, 18, 18, 0.95);
+    background: rgba(22, 21, 20, 0.75);
 }
 
-[data-theme="dark"] .header.sticky {
-    background: rgba(18, 18, 18, 0.98);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+[data-theme="dark"] .header.is-scrolled {
+    background: rgba(22, 21, 20, 0.95);
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 [data-theme="dark"] .main-footer {
@@ -94,8 +95,10 @@ body {
 
 [data-theme="dark"] .dropdown-menu,
 [data-theme="dark"] .mini-cart-dropdown {
-    background: #121212;
-    border-color: #333;
+    background: rgba(30, 28, 26, 0.96);
+    backdrop-filter: blur(12px);
+    border-color: var(--border);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 [data-theme="dark"] .nav-wrapper {
@@ -103,12 +106,14 @@ body {
 }
 
 [data-theme="dark"] .nav-link {
-    color: #FFFFFF;
+    color: var(--primary);
+    opacity: 0.85;
 }
 
 [data-theme="dark"] .nav-link:hover,
 [data-theme="dark"] .nav-link.active {
     color: var(--accent) !important;
+    opacity: 1 !important;
 }
 
 [data-theme="dark"] .size-btn.selected {
@@ -164,12 +169,14 @@ body {
 }
 
 [data-theme="dark"] .dropdown-menu li a {
-    color: #E0E0E0;
+    color: var(--primary);
+    opacity: 0.82;
 }
 
 [data-theme="dark"] .dropdown-menu li a:hover {
     background: rgba(255, 255, 255, 0.05);
-    color: #FFF;
+    color: var(--accent) !important;
+    opacity: 1 !important;
 }
 
 [data-theme="dark"] .search-overlay {
@@ -539,21 +546,25 @@ select:focus-visible {
 
 .header {
     position: fixed;
-    top: var(--header-top);
-    left: 0;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
     width: 100%;
-    background: rgba(249, 248, 246, 0.85);
+    margin-top: 0;
+    border-top: none;
+    background: rgba(249, 248, 246, 0.75);
     backdrop-filter: blur(12px);
+    border: none;
     border-bottom: 1px solid transparent;
     z-index: 1000;
-    transition: top 0.3s ease, background 0.4s ease, border-color 0.4s ease;
+    transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.header.sticky {
-    border-color: var(--border);
-    padding: 0;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+.header.is-scrolled {
+    top: 0;
     background: rgba(249, 248, 246, 0.95);
+    border-bottom-color: var(--border);
+    box-shadow: 0 12px 30px rgba(147, 127, 99, 0.04), 0 1px 3px rgba(0, 0, 0, 0.01);
 }
 
 .header-inner {
@@ -561,13 +572,26 @@ select:focus-visible {
     justify-content: space-between;
     align-items: center;
     height: var(--header-height);
-    transition: height 0.3s ease;
+    transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
     position: relative;
     z-index: 20;
 }
 
-.header.sticky .header-inner {
-    height: 70px;
+@media (min-width: 1025px) {
+    .header.is-scrolled {
+        top: 0;
+        padding-top: 0;
+        max-width: 1040px;
+        border: 1px solid var(--border);
+        border-top: none;
+        border-radius: 0 0 20px 20px;
+        box-shadow: 0 20px 40px rgba(147, 127, 99, 0.12), 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+    
+    .header.is-scrolled .header-inner {
+        height: 70px;
+        padding: 0 28px;
+    }
 }
 
 /* Category Chips (Updated: Now in-flow, not sticky) */
@@ -688,11 +712,19 @@ select:focus-visible {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: color 0.3s;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: background 0.3s cubic-bezier(0.16, 1, 0.3, 1), color 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .search-trigger:hover {
-    opacity: 0.7;
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--accent);
+    transform: translateY(-1px);
 }
 
 /* Navigation Styles */
@@ -756,9 +788,10 @@ select:focus-visible {
     text-transform: uppercase;
     letter-spacing: 0.08em;
     font-weight: 600;
-    color: var(--secondary);
+    color: var(--primary);
+    opacity: 0.85;
     cursor: pointer;
-    transition: color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: color 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     position: relative;
     padding: 5px 0;
 }
@@ -779,6 +812,7 @@ select:focus-visible {
 .nav-link.active,
 .nav-link:hover {
     color: var(--accent);
+    opacity: 1;
 }
 
 .nav-link.active::after,
@@ -794,7 +828,8 @@ select:focus-visible {
 
 /* Common Dropdown Styles */
 .dropdown-menu {
-    background: var(--bg-card);
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(12px);
     border: 1px solid var(--border);
     list-style: none;
     z-index: 1100;
@@ -830,51 +865,80 @@ select:focus-visible {
         position: absolute;
         top: 100%;
         left: 50%;
-        transform: translateX(-50%) translateY(10px);
-        min-width: 220px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        transform: translateX(-50%) translateY(15px);
+        min-width: 240px;
+        box-shadow: 0 20px 40px rgba(147, 127, 99, 0.12), 0 1px 3px rgba(0, 0, 0, 0.02);
         opacity: 0;
         visibility: hidden;
-        transition: opacity 0.3s ease, transform 0.3s ease;
-        padding: 1rem 0;
-        border-radius: 4px;
-        padding-top: 15px;
+        transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.4s;
+        padding: 0.75rem 0;
+        border-radius: 12px;
         pointer-events: none;
     }
 
     .has-dropdown:hover .dropdown-menu {
         opacity: 1;
         visibility: visible;
-        transform: translateX(-50%) translateY(0);
+        transform: translateX(-50%) translateY(5px);
         pointer-events: auto;
     }
 
     .has-dropdown::after {
         content: '';
         position: absolute;
-        height: 20px;
-        width: 100%;
-        bottom: -20px;
-        left: 0;
+        height: 18px;
+        width: 120%;
+        bottom: -18px;
+        left: -10%;
     }
 }
 
+.dropdown-menu li {
+    padding: 2px 0;
+}
+
 .dropdown-menu li a {
-    display: block;
-    padding: 0.75rem 2rem;
-    color: var(--secondary);
-    font-size: 0.9rem;
-    transition: color 0.2s, background 0.2s;
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1.75rem;
+    color: var(--primary);
+    opacity: 0.75;
+    font-size: 0.95rem;
+    font-weight: 500;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    text-align: center;
+    letter-spacing: 0.06em;
+    text-align: left;
     font-family: var(--font-heading);
     cursor: pointer;
+    border-radius: 8px;
+    margin: 0 10px;
 }
 
 .dropdown-menu li a:hover {
     color: var(--accent);
-    background: rgba(0, 0, 0, 0.03);
+    opacity: 1;
+    background: rgba(147, 127, 99, 0.06);
+    transform: translateX(4px);
+}
+
+.dot-indicator {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--border);
+    margin-right: 12px;
+    transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dropdown-menu li a:hover .dot-indicator {
+    background: var(--accent);
+    transform: scale(1.3);
+}
+
+.dot-indicator.sale {
+    background: var(--accent);
 }
 
 .nav-actions {
@@ -890,19 +954,24 @@ select:focus-visible {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
-    transition: background 0.3s ease;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: background 0.3s cubic-bezier(0.16, 1, 0.3, 1), color 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     color: var(--primary);
 }
 
 .theme-toggle:hover {
     background: rgba(0, 0, 0, 0.05);
+    color: var(--accent);
+    transform: translateY(-1px);
 }
 
 [data-theme="dark"] .theme-toggle:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.08);
 }
 
 /* Cart Wrapper for Hover Preview */
@@ -918,11 +987,23 @@ select:focus-visible {
     gap: 0;
     width: 44px;
     height: 44px;
+    border-radius: 50%;
     background: transparent;
     border: none;
     cursor: pointer;
     color: var(--primary);
     padding: 0;
+    transition: background 0.3s cubic-bezier(0.16, 1, 0.3, 1), color 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cart-trigger:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--accent);
+    transform: translateY(-1px);
+}
+
+[data-theme="dark"] .cart-trigger:hover {
+    background: rgba(255, 255, 255, 0.08);
 }
 
 .cart-trigger svg {
@@ -971,6 +1052,7 @@ select:focus-visible {
     text-align: center;
     color: #ffffff;
     margin-bottom: 4rem;
+    padding-top: var(--header-height);
 }
 
 .hero::before {
@@ -1098,6 +1180,7 @@ select:focus-visible {
     color: #fff;
     margin-bottom: 5rem;
     overflow: hidden;
+    padding-top: var(--header-height);
 }
 
 .about-hero::before {
@@ -3043,7 +3126,8 @@ body.cart-open .cart-sidebar {
         padding: 0.75rem 2rem 0.75rem 2.5rem;
         font-size: 0.88rem;
         color: var(--primary);
-        transition: var(--transition);
+        opacity: 0.82;
+        transition: var(--transition), opacity 0.3s ease;
         cursor: pointer;
         text-transform: none;
         letter-spacing: 0.01em;
@@ -3054,6 +3138,7 @@ body.cart-open .cart-sidebar {
     .nav-wrapper .dropdown-menu li a:hover {
         background: rgba(147, 127, 99, 0.05);
         color: var(--accent);
+        opacity: 1;
         padding-left: 2.8rem;
     }
 
