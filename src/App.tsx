@@ -1464,6 +1464,7 @@ export default function App() {
     setSelectedProductColor(null);
     setSelectedImageOverride(null);
     setModalQty(1);
+    setCalcResult(null);
     const availableSizes = SIZE_VARIANTS[product.category] || SIZE_VARIANTS['default'];
     setSelectedSize(availableSizes[0]);
     if (!skipHash) {
@@ -1716,6 +1717,17 @@ export default function App() {
     else if (bmi < 25) size = 'M';
     else if (bmi < 30) size = 'L';
     else size = 'XL';
+    
+    if (selectedProduct && selectedProduct.category === 'Shoes') {
+      if (h < 160) size = '39';
+      else if (h < 167) size = '40';
+      else if (h < 174) size = '41';
+      else if (h < 180) size = '42';
+      else if (h < 186) size = '43';
+      else if (h < 192) size = '44';
+      else size = '45';
+    }
+    
     setCalcResult(size);
     setSelectedSize(size);
     triggerToast(`Recommended Fit: Size ${size} selected!`);
@@ -2583,10 +2595,10 @@ create table if not exists public.admin_approvals (
 -- Enable RLS
 alter table public.admin_approvals enable row level security;
 
--- Policies for public registration and read
+-- Policies for secure registration and read (no public updates allowed!)
 create policy "Allow read for anyone" on public.admin_approvals for select using (true);
 create policy "Allow insert for anyone" on public.admin_approvals for insert with check (true);
-create policy "Allow updates for anyone" on public.admin_approvals for all using (true) with check (true);`}
+-- Note: No UPDATE policy is created. This ensures ONLY the database owner/dashboard can approve requests!`}
                             </pre>
                             <button
                               type="button"
@@ -2600,8 +2612,7 @@ create policy "Allow updates for anyone" on public.admin_approvals for all using
 );
 alter table public.admin_approvals enable row level security;
 create policy "Allow read for anyone" on public.admin_approvals for select using (true);
-create policy "Allow insert for anyone" on public.admin_approvals for insert with check (true);
-create policy "Allow updates for anyone" on public.admin_approvals for all using (true) with check (true);`);
+create policy "Allow insert for anyone" on public.admin_approvals for insert with check (true);`);
                                 triggerToast("SQL query copied to clipboard!");
                               }}
                               style={{
