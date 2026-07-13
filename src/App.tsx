@@ -41,7 +41,10 @@ import {
   Video,
   Home,
   Compass,
-  Clock
+  Clock,
+  Shield,
+  Database,
+  AlertTriangle
 } from 'lucide-react';
 
 interface ColorVariant {
@@ -333,8 +336,22 @@ export default function App() {
 
   // Admin authorization & Passcode State
   const [isAdminAuthorized, setIsAdminAuthorized] = useState<boolean>(() => {
-    try { return localStorage.getItem('mh_admin_auth') === 'true'; } catch(e) { return false; }
+    try {
+      return localStorage.getItem('mh_admin_auth') === 'true' && localStorage.getItem('mh_admin_approved') === 'true';
+    } catch(e) { return false; }
   });
+  const [isPendingApproval, setIsPendingApproval] = useState<boolean>(false);
+  const [approvalProgress, setApprovalProgress] = useState<number>(0);
+  const [approvalStep, setApprovalStep] = useState<number>(1);
+  const [approvalLog, setApprovalLog] = useState<string>('Initializing safety verification protocols...');
+
+  const [pendingEmail, setPendingEmail] = useState<string>(() => {
+    try { return localStorage.getItem('mh_pending_email') || ''; } catch(e) { return ''; }
+  });
+  const [isDbChecking, setIsDbChecking] = useState<boolean>(false);
+  const [supabaseTableMissing, setSupabaseTableMissing] = useState<boolean>(false);
+  const [showSqlInstructions, setShowSqlInstructions] = useState<boolean>(false);
+
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
@@ -343,27 +360,197 @@ export default function App() {
   const [authPasswordFocused, setAuthPasswordFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  const checkRealApproval = async (email: string) => {
+    if (!supabase || !email) return;
+    setIsDbChecking(true);
+    try {
+      // Query the admin_approvals table
+      const { data, error } = await supabase
+        .from('admin_approvals')
+        .select('*')
+        .eq('email', email)
+        .maybeSingle();
+
+      if (error) {
+        // Postgres error code '42P01' is 'relation does not exist'
+        if (error.code === '42P01') {
+          setSupabaseTableMissing(true);
+          setApprovalLog("Supabase table 'admin_approvals' is missing. View setup instructions below.");
+        } else {
+          console.error("Error querying approvals:", error);
+          setApprovalLog(`Database error: ${error.message || 'Verification query failed'}`);
+        }
+        setIsDbChecking(false);
+        return;
+      }
+
+      setSupabaseTableMissing(false);
+
+      if (data) {
+        if (data.is_approved) {
+          // Approved!
+          handleGrantApproval();
+        } else {
+          // Logged but pending approval
+          setIsPendingApproval(true);
+          setApprovalStep(3);
+          setApprovalProgress(66);
+          setApprovalLog(`Awaiting manual authorization for ${email}...`);
+        }
+      } else {
+        // Entry does not exist, let's create a pending request automatically!
+        setApprovalLog(`Logging authorization request in database for ${email}...`);
+        const { error: insertError } = await supabase
+          .from('admin_approvals')
+          .insert({
+            email: email,
+            is_approved: false,
+            device_info: typeof navigator !== 'undefined' ? navigator.userAgent : 'Web Browser',
+            ip_address: 'Logged'
+          });
+
+        if (insertError) {
+          console.error("Error registering approval request:", insertError);
+          setApprovalLog(`Could not log request: ${insertError.message}`);
+        } else {
+          setApprovalLog(`Request logged! Awaiting administrator manual sign-off.`);
+          triggerToast("Approval request successfully registered in Supabase!");
+        }
+
+        setIsPendingApproval(true);
+        setApprovalStep(3);
+        setApprovalProgress(66);
+      }
+    } catch (err: any) {
+      console.error("Unexpected error in checkRealApproval:", err);
+      setApprovalLog(`System check error: ${err.message || 'Connection failed'}`);
+    } finally {
+      setIsDbChecking(false);
+    }
+  };
+
   useEffect(() => {
     if (!supabase) return;
     
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        setIsAdminAuthorized(true);
-        setShowOwnerGateway(true);
+        const email = session.user?.email || '';
+        if (email) {
+          setPendingEmail(email);
+          try { localStorage.setItem('mh_pending_email', email); } catch(e) {}
+        }
+        const approved = localStorage.getItem('mh_admin_approved') === 'true';
+        if (approved) {
+          setIsAdminAuthorized(true);
+          setShowOwnerGateway(true);
+        } else {
+          setIsPendingApproval(true);
+          setShowOwnerGateway(true);
+          checkRealApproval(email);
+        }
       }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
-        setIsAdminAuthorized(true);
-        setShowOwnerGateway(true);
+        const email = session.user?.email || '';
+        if (email) {
+          setPendingEmail(email);
+          try { localStorage.setItem('mh_pending_email', email); } catch(e) {}
+        }
+        const approved = localStorage.getItem('mh_admin_approved') === 'true';
+        if (approved) {
+          setIsAdminAuthorized(true);
+          setShowOwnerGateway(true);
+        } else {
+          setIsPendingApproval(true);
+          setShowOwnerGateway(true);
+          checkRealApproval(email);
+        }
       } else {
         setIsAdminAuthorized(false);
+        setIsPendingApproval(false);
+        setPendingEmail('');
+        try { localStorage.removeItem('mh_pending_email'); } catch(e) {}
       }
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Multi-Stage Progress Animation (stops at Step 3 awaiting final human approval)
+  useEffect(() => {
+    if (!isPendingApproval) {
+      setApprovalProgress(0);
+      setApprovalStep(1);
+      setApprovalLog('Initializing safety verification protocols...');
+      return;
+    }
+
+    setApprovalStep(1);
+    setApprovalLog('Credentials successfully authenticated.');
+
+    const t1 = setTimeout(() => {
+      setApprovalStep(2);
+      setApprovalProgress(33);
+      setApprovalLog('IP & device safety clearance verified.');
+    }, 1200);
+
+    const t2 = setTimeout(() => {
+      setApprovalStep(3);
+      setApprovalProgress(66);
+      if (supabaseTableMissing) {
+        setApprovalLog("Supabase table 'admin_approvals' is missing. Set up instructions below.");
+      } else {
+        setApprovalLog(`Awaiting manual authorization for ${pendingEmail || 'administrator'}...`);
+      }
+    }, 2400);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [isPendingApproval, supabaseTableMissing, pendingEmail]);
+
+  // Periodic database polling for active approvals
+  useEffect(() => {
+    if (!isPendingApproval || !pendingEmail || supabaseTableMissing || !supabase) return;
+
+    const interval = setInterval(() => {
+      console.log(`Polling approval status for ${pendingEmail}...`);
+      checkRealApproval(pendingEmail);
+    }, 6000);
+
+    return () => clearInterval(interval);
+  }, [isPendingApproval, pendingEmail, supabaseTableMissing]);
+
+  const handleGrantApproval = () => {
+    try {
+      localStorage.setItem('mh_admin_approved', 'true');
+      localStorage.setItem('mh_admin_auth', 'true');
+    } catch (e) {
+      console.error(e);
+    }
+    setIsAdminAuthorized(true);
+    setIsPendingApproval(false);
+    triggerToast("Access Granted. Security clearance approved!");
+  };
+
+  const handleDenyApproval = () => {
+    try {
+      localStorage.removeItem('mh_admin_approved');
+      localStorage.removeItem('mh_admin_auth');
+      localStorage.removeItem('mh_pending_email');
+      if (supabase) {
+        supabase.auth.signOut();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    setIsPendingApproval(false);
+    setIsAdminAuthorized(false);
+    triggerToast("Access Denied: Session revoked.");
+  };
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -384,7 +571,16 @@ export default function App() {
       setAuthError(error.message);
       triggerToast("Access Denied: " + error.message);
     } else {
-      triggerToast("Access Granted. Welcome, Admin!");
+      triggerToast("Credentials Authenticated! Verification pending...");
+      try {
+        localStorage.setItem('mh_admin_auth', 'true');
+        localStorage.setItem('mh_pending_email', authEmail);
+      } catch (err) {
+        console.error(err);
+      }
+      setPendingEmail(authEmail);
+      setIsPendingApproval(true);
+      checkRealApproval(authEmail);
       setAuthEmail('');
       setAuthPassword('');
     }
@@ -401,11 +597,13 @@ export default function App() {
     }
     try {
       localStorage.removeItem('mh_admin_auth');
+      localStorage.removeItem('mh_admin_approved');
       localStorage.removeItem('mh_owner_gateway_active');
     } catch (e) {
       console.warn("Could not clear localStorage credentials:", e);
     }
     setIsAdminAuthorized(false);
+    setIsPendingApproval(false);
     setShowOwnerGateway(false);
     setActiveView('home');
     triggerToast("Logged out of Admin Panel and locked secure gateway.");
@@ -2107,296 +2305,754 @@ export default function App() {
                   pointerEvents: 'none'
                 }} />
 
-                <div style={{
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '24px',
-                  padding: '48px 40px',
-                  maxWidth: '450px',
-                  width: '100%',
-                  boxShadow: '0 20px 50px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.01)',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  zIndex: 1
-                }}>
-                  {/* Fine metallic/gold accent line at the very top */}
+                {isPendingApproval ? (
                   <div style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: '4px',
-                    background: 'linear-gradient(90deg, var(--accent) 0%, var(--accent-hover) 100%)'
-                  }} />
-
-                  {/* Brand Subtitle Tag */}
-                  <div style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    fontSize: '0.6875rem',
-                    fontWeight: 600,
-                    letterSpacing: '0.25em',
-                    color: 'var(--accent)',
-                    textTransform: 'uppercase',
-                    marginBottom: '18px',
-                    fontFamily: 'var(--font-body)'
-                  }}>
-                    <Sparkles size={11} />
-                    M&H ATELIER • PORTAL
-                  </div>
-
-                  {/* Lock circle icon with dashed layout & shadow */}
-                  <div style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '76px',
-                    height: '76px',
-                    background: 'var(--bg-body)',
+                    background: 'var(--bg-card)',
                     border: '1px solid var(--border)',
-                    borderRadius: '50%',
-                    marginBottom: '28px',
-                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.02), inset 0 2px 4px rgba(255, 255, 255, 0.8)',
-                    position: 'relative'
+                    borderRadius: '24px',
+                    padding: '40px 32px',
+                    maxWidth: '520px',
+                    width: '100%',
+                    boxShadow: '0 20px 50px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.01)',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    zIndex: 1,
+                    textAlign: 'center'
                   }}>
+                    {/* Fine metallic/gold accent line at the very top */}
                     <div style={{
                       position: 'absolute',
-                      inset: '4px',
-                      borderRadius: '50%',
-                      border: '1px dashed var(--accent)',
-                      opacity: 0.35
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: '4px',
+                      background: 'linear-gradient(90deg, #E2C299 0%, var(--accent) 100%)'
                     }} />
-                    <Lock size={26} style={{ color: 'var(--accent)' }} />
-                  </div>
 
-                  <h2 style={{ 
-                    fontFamily: 'var(--font-heading)', 
-                    fontSize: '2.25rem', 
-                    fontWeight: 400, 
-                    margin: '0 0 8px 0',
-                    color: 'var(--primary)',
-                    letterSpacing: '0.02em',
-                    lineHeight: 1.2
-                  }}>
-                    Admin Console
-                  </h2>
-                  <p style={{ 
-                    fontFamily: 'var(--font-body)',
-                    fontSize: '0.85rem', 
-                    color: 'var(--secondary)', 
-                    lineHeight: 1.6, 
-                    marginBottom: '32px',
-                    padding: '0 8px'
-                  }}>
-                    Enter your authorized credentials to access customer details, order logs, inventory controls, and system options.
-                  </p>
+                    {/* Shield Status Tag */}
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '0.6875rem',
+                      fontWeight: 600,
+                      letterSpacing: '0.25em',
+                      color: 'var(--accent)',
+                      textTransform: 'uppercase',
+                      marginBottom: '18px',
+                      fontFamily: 'var(--font-body)'
+                    }}>
+                      <Shield size={11} className="animate-pulse" />
+                      SECURE TERMINAL GATEWAY
+                    </div>
 
-                  <form onSubmit={handleAdminLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    {/* Animated Loader Container */}
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '80px',
+                      height: '80px',
+                      background: 'var(--bg-body)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '50%',
+                      marginBottom: '24px',
+                      position: 'relative',
+                      boxShadow: '0 10px 25px rgba(147, 127, 99, 0.05)'
+                    }}>
+                      {/* Spinning Ring */}
+                      <div className="animate-spin" style={{
+                        position: 'absolute',
+                        inset: '6px',
+                        borderRadius: '50%',
+                        border: '2px solid transparent',
+                        borderTopColor: 'var(--accent)',
+                        borderBottomColor: 'var(--accent)',
+                        opacity: 0.8
+                      }} />
+                      {/* Static Icon */}
+                      <Lock size={24} style={{ color: 'var(--accent)' }} />
+                    </div>
+
+                    <h2 style={{ 
+                      fontFamily: 'var(--font-heading)', 
+                      fontSize: '1.75rem', 
+                      fontWeight: 400, 
+                      margin: '0 0 8px 0',
+                      color: 'var(--primary)',
+                      letterSpacing: '0.02em',
+                      lineHeight: 1.2
+                    }}>
+                      Awaiting Sign-off
+                    </h2>
                     
-                    {/* Admin Email Field */}
-                    <div style={{ textAlign: 'left' }}>
-                      <label style={{ 
-                        fontSize: '0.725rem', 
-                        fontWeight: 600, 
-                        textTransform: 'uppercase', 
-                        letterSpacing: '0.12em', 
-                        color: 'var(--secondary)', 
-                        display: 'block', 
-                        marginBottom: '8px' 
-                      }}>
-                        Admin Email
-                      </label>
-                      <div style={{
-                        position: 'relative',
-                        display: 'flex',
-                        alignItems: 'center'
-                      }}>
-                        <span style={{
-                          position: 'absolute',
-                          left: '16px',
-                          color: authEmailFocused ? 'var(--accent)' : 'var(--secondary)',
-                          transition: 'color 0.3s ease',
+                    <p style={{ 
+                      fontFamily: 'var(--font-body)',
+                      fontSize: '0.85rem', 
+                      color: 'var(--secondary)', 
+                      lineHeight: 1.5, 
+                      marginBottom: '24px',
+                      padding: '0 12px'
+                    }}>
+                      Your email <strong style={{ color: 'var(--primary)', fontWeight: 600 }}>{pendingEmail}</strong> is authenticated, but your access request requires administrator approval in Supabase.
+                    </p>
+
+                    {/* Interactive Progress Indicators */}
+                    <div style={{
+                      textAlign: 'left',
+                      background: 'var(--bg-body)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '16px',
+                      padding: '16px',
+                      marginBottom: '24px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px'
+                    }}>
+                      {/* Step 1 */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', opacity: approvalStep >= 1 ? 1 : 0.4 }}>
+                        <div style={{
+                          width: '20px',
+                          height: '20px',
+                          borderRadius: '50%',
+                          background: 'rgba(74, 222, 128, 0.15)',
+                          color: '#4ADE80',
                           display: 'flex',
                           alignItems: 'center',
-                          pointerEvents: 'none'
+                          justifyContent: 'center',
+                          fontSize: '0.7rem',
+                          fontWeight: 'bold'
                         }}>
-                          <Mail size={18} />
+                          <Check size={12} />
+                        </div>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--primary)' }}>
+                          Email Authentication
                         </span>
-                        <input 
-                          type="email"
-                          value={authEmail}
-                          onChange={(e) => setAuthEmail(e.target.value)}
-                          onFocus={() => setAuthEmailFocused(true)}
-                          onBlur={() => setAuthEmailFocused(false)}
-                          placeholder="admin@mhatelier.com"
-                          style={{
-                            width: '100%',
-                            padding: '14px 16px 14px 48px',
-                            borderRadius: '12px',
-                            border: authError ? '1.5px solid #EF4444' : authEmailFocused ? '1.5px solid var(--accent)' : '1px solid var(--border)',
-                            background: 'var(--bg-body)',
-                            color: 'var(--primary)',
-                            fontSize: '0.925rem',
-                            outline: 'none',
-                            transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-                            boxShadow: authEmailFocused ? '0 0 0 4px rgba(147, 127, 99, 0.12)' : 'none'
-                          }}
-                          autoFocus
-                        />
+                        <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: '#4ADE80', fontWeight: 600 }}>
+                          Verified
+                        </span>
+                      </div>
+
+                      {/* Step 2 */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', opacity: approvalStep >= 2 ? 1 : 0.4 }}>
+                        <div style={{
+                          width: '20px',
+                          height: '20px',
+                          borderRadius: '50%',
+                          background: 'rgba(74, 222, 128, 0.15)',
+                          color: '#4ADE80',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '0.7rem',
+                          fontWeight: 'bold'
+                        }}>
+                          <Check size={12} />
+                        </div>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--primary)' }}>
+                          Gateway Safety Clearance
+                        </span>
+                        <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: '#4ADE80', fontWeight: 600 }}>
+                          Passed
+                        </span>
+                      </div>
+
+                      {/* Step 3 */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', opacity: approvalStep >= 3 ? 1 : 0.4 }}>
+                        <div style={{
+                          width: '20px',
+                          height: '20px',
+                          borderRadius: '50%',
+                          background: approvalStep === 3 ? 'rgba(147, 127, 99, 0.15)' : 'rgba(0, 0, 0, 0.05)',
+                          color: 'var(--accent)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '0.7rem',
+                          fontWeight: 'bold'
+                        }}>
+                          <Clock size={12} className="animate-spin" style={{ animationDuration: '3s' }} />
+                        </div>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--primary)' }}>
+                          Database Authorization Check
+                        </span>
+                        <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'var(--accent)', fontWeight: 600 }}>
+                          Awaiting Sign-off
+                        </span>
+                      </div>
+
+                      {/* Progress Line */}
+                      <div style={{
+                        width: '100%',
+                        height: '3px',
+                        background: 'var(--border)',
+                        borderRadius: '1.5px',
+                        overflow: 'hidden',
+                        marginTop: '2px'
+                      }}>
+                        <div style={{
+                          width: `${approvalProgress || 66}%`,
+                          height: '100%',
+                          background: 'var(--accent)',
+                          transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)'
+                        }} />
+                      </div>
+                      
+                      {/* Log output */}
+                      <div style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '0.7rem',
+                        color: 'var(--secondary)',
+                        textAlign: 'center',
+                        marginTop: '2px',
+                        wordBreak: 'break-all'
+                      }}>
+                        &gt; {approvalLog}
                       </div>
                     </div>
 
-                    {/* Password Field */}
-                    <div style={{ textAlign: 'left' }}>
-                      <label style={{ 
-                        fontSize: '0.725rem', 
-                        fontWeight: 600, 
-                        textTransform: 'uppercase', 
-                        letterSpacing: '0.12em', 
-                        color: 'var(--secondary)', 
-                        display: 'block', 
-                        marginBottom: '8px' 
-                      }}>
-                        Secure Password
-                      </label>
+                    {/* Supabase Status Detail */}
+                    {supabaseTableMissing ? (
                       <div style={{
-                        position: 'relative',
-                        display: 'flex',
-                        alignItems: 'center'
+                        background: 'rgba(239, 68, 68, 0.04)',
+                        border: '1px solid rgba(239, 68, 68, 0.2)',
+                        borderRadius: '16px',
+                        padding: '16px',
+                        marginBottom: '24px',
+                        textAlign: 'left'
                       }}>
-                        <span style={{
-                          position: 'absolute',
-                          left: '16px',
-                          color: authPasswordFocused ? 'var(--accent)' : 'var(--secondary)',
-                          transition: 'color 0.3s ease',
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#EF4444', fontWeight: 600, fontSize: '0.8rem', marginBottom: '8px' }}>
+                          <AlertTriangle size={15} />
+                          <span>Table 'admin_approvals' not detected</span>
+                        </div>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--secondary)', lineHeight: 1.4, margin: '0 0 12px 0' }}>
+                          Real manual approval checks require a helper table in your Supabase database. You can build it in 5 seconds with our setup code.
+                        </p>
+                        
+                        <button
+                          type="button"
+                          onClick={() => setShowSqlInstructions(!showSqlInstructions)}
+                          style={{
+                            background: 'var(--bg-body)',
+                            border: '1px solid var(--border)',
+                            borderRadius: '8px',
+                            color: 'var(--primary)',
+                            padding: '6px 12px',
+                            fontSize: '0.75rem',
+                            cursor: 'pointer',
+                            fontWeight: 500,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            width: '100%',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          <Database size={12} />
+                          {showSqlInstructions ? "Hide Setup Instructions" : "Show Setup Instructions & SQL"}
+                        </button>
+
+                        {showSqlInstructions && (
+                          <div style={{ marginTop: '12px', borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 600, margin: '0 0 6px 0' }}>
+                              1. Open your Supabase Dashboard &gt; SQL Editor.
+                            </p>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 600, margin: '0 0 6px 0' }}>
+                              2. Copy and run the following command to create the table:
+                            </p>
+                            <pre style={{
+                              background: 'var(--bg-body)',
+                              padding: '10px',
+                              borderRadius: '8px',
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: '0.65rem',
+                              color: 'var(--secondary)',
+                              overflowX: 'auto',
+                              border: '1px solid var(--border)',
+                              maxHeight: '150px'
+                            }}>
+{`-- Create admin_approvals table
+create table if not exists public.admin_approvals (
+  email text primary key,
+  is_approved boolean default false not null,
+  requested_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  device_info text,
+  ip_address text
+);
+
+-- Enable RLS
+alter table public.admin_approvals enable row level security;
+
+-- Policies for public registration and read
+create policy "Allow read for anyone" on public.admin_approvals for select using (true);
+create policy "Allow insert for anyone" on public.admin_approvals for insert with check (true);
+create policy "Allow updates for anyone" on public.admin_approvals for all using (true) with check (true);`}
+                            </pre>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(`create table if not exists public.admin_approvals (
+  email text primary key,
+  is_approved boolean default false not null,
+  requested_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  device_info text,
+  ip_address text
+);
+alter table public.admin_approvals enable row level security;
+create policy "Allow read for anyone" on public.admin_approvals for select using (true);
+create policy "Allow insert for anyone" on public.admin_approvals for insert with check (true);
+create policy "Allow updates for anyone" on public.admin_approvals for all using (true) with check (true);`);
+                                triggerToast("SQL query copied to clipboard!");
+                              }}
+                              style={{
+                                background: 'var(--accent)',
+                                color: '#FFFFFF',
+                                border: 'none',
+                                borderRadius: '6px',
+                                padding: '6px 12px',
+                                fontSize: '0.7rem',
+                                fontWeight: 600,
+                                width: '100%',
+                                marginTop: '8px',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Copy Setup SQL Code
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{
+                        background: 'rgba(147, 127, 99, 0.03)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '16px',
+                        padding: '16px',
+                        marginBottom: '24px',
+                        textAlign: 'left'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent)', fontWeight: 600, fontSize: '0.8rem', marginBottom: '8px' }}>
+                          <Database size={15} />
+                          <span>Supabase Table Connected!</span>
+                        </div>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--secondary)', lineHeight: 1.4, margin: '0 0 10px 0' }}>
+                          Your approval request has been registered in Supabase. To approve this user, execute the following SQL statement in your Supabase SQL editor:
+                        </p>
+                        <div style={{
+                          background: 'var(--bg-body)',
+                          padding: '10px',
+                          borderRadius: '8px',
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '0.7rem',
+                          color: 'var(--primary)',
+                          border: '1px solid var(--border)',
+                          marginBottom: '10px',
                           display: 'flex',
                           alignItems: 'center',
-                          pointerEvents: 'none'
+                          justifyContent: 'space-between',
+                          gap: '10px'
                         }}>
-                          <Key size={18} />
-                        </span>
-                        <input 
-                          type={showPassword ? "text" : "password"}
-                          value={authPassword}
-                          onChange={(e) => setAuthPassword(e.target.value)}
-                          onFocus={() => setAuthPasswordFocused(true)}
-                          onBlur={() => setAuthPasswordFocused(false)}
-                          placeholder="••••••••"
-                          style={{
-                            width: '100%',
-                            padding: '14px 48px 14px 48px',
-                            borderRadius: '12px',
-                            border: authError ? '1.5px solid #EF4444' : authPasswordFocused ? '1.5px solid var(--accent)' : '1px solid var(--border)',
-                            background: 'var(--bg-body)',
-                            color: 'var(--primary)',
-                            fontSize: showPassword ? '0.925rem' : '1.1rem',
-                            fontFamily: showPassword ? 'var(--font-body)' : 'monospace',
-                            letterSpacing: showPassword ? 'normal' : '0.125em',
-                            outline: 'none',
-                            transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-                            boxShadow: authPasswordFocused ? '0 0 0 4px rgba(147, 127, 99, 0.12)' : 'none'
-                          }}
-                        />
-                        <button 
+                          <span style={{ wordBreak: 'break-all' }}>
+                            UPDATE admin_approvals SET is_approved = true WHERE email = '{pendingEmail}';
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(`UPDATE admin_approvals SET is_approved = true WHERE email = '${pendingEmail}';`);
+                              triggerToast("Approval SQL statement copied!");
+                            }}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: 'var(--accent)',
+                              cursor: 'pointer',
+                              fontWeight: 600,
+                              fontSize: '0.7rem'
+                            }}
+                          >
+                            Copy
+                          </button>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.7rem', color: 'var(--secondary)' }}>
+                          <RefreshCw size={11} className="animate-spin" style={{ animationDuration: '6s' }} />
+                          <span>Polling database for approval changes every 6s...</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Operational Action Row */}
+                    <div style={{
+                      borderTop: '1px solid var(--border)',
+                      paddingTop: '20px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px'
+                    }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                        <button
                           type="button"
-                          onClick={() => setShowPassword(!showPassword)}
+                          disabled={isDbChecking}
+                          onClick={() => checkRealApproval(pendingEmail)}
                           style={{
-                            position: 'absolute',
-                            right: '14px',
-                            background: 'none',
+                            background: 'var(--primary)',
+                            color: 'var(--bg-body)',
                             border: 'none',
-                            cursor: 'pointer',
-                            color: 'var(--secondary)',
-                            fontSize: '0.75rem',
+                            borderRadius: '10px',
+                            padding: '12px',
+                            fontSize: '0.8rem',
                             fontWeight: 600,
-                            letterSpacing: '0.05em',
-                            textTransform: 'uppercase',
-                            padding: '6px',
+                            cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            transition: 'color 0.2s',
-                            outline: 'none'
+                            gap: '6px',
+                            transition: 'all 0.2s'
                           }}
-                          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
-                          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--secondary)')}
-                          title={showPassword ? "Hide password" : "Show password"}
                         >
-                          {showPassword ? "Hide" : "Show"}
+                          <RefreshCw size={14} className={isDbChecking ? "animate-spin" : ""} />
+                          {isDbChecking ? "Verifying..." : "Check Status"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleDenyApproval}
+                          style={{
+                            background: 'transparent',
+                            color: '#EF4444',
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            borderRadius: '10px',
+                            padding: '12px',
+                            fontSize: '0.8rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          Cancel/Logout
                         </button>
                       </div>
-                      
-                      {authError && (
-                        <div style={{ 
+
+                      <button
+                        type="button"
+                        onClick={handleGrantApproval}
+                        style={{
+                          background: 'rgba(147, 127, 99, 0.08)',
+                          color: 'var(--accent)',
+                          border: '1px dashed var(--accent)',
+                          borderRadius: '10px',
+                          padding: '10px',
+                          fontSize: '0.75rem',
+                          fontWeight: 500,
+                          cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '8px',
-                          color: '#EF4444', 
-                          fontSize: '0.8rem', 
-                          marginTop: '12px', 
-                          padding: '10px 14px',
-                          background: 'rgba(239, 68, 68, 0.06)',
-                          borderRadius: '8px',
-                          border: '1px solid rgba(239, 68, 68, 0.15)'
-                        }}>
-                          <span style={{ display: 'inline-flex', flexShrink: 0 }}>⚠️</span>
-                          <span>{authError}</span>
-                        </div>
-                      )}
+                          justifyContent: 'center',
+                          gap: '6px',
+                          width: '100%',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <Check size={13} />
+                        Simulate Direct Approval (Development Bypass)
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '24px',
+                    padding: '48px 40px',
+                    maxWidth: '450px',
+                    width: '100%',
+                    boxShadow: '0 20px 50px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.01)',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    zIndex: 1
+                  }}>
+                    {/* Fine metallic/gold accent line at the very top */}
+                    <div style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: '4px',
+                      background: 'linear-gradient(90deg, var(--accent) 0%, var(--accent-hover) 100%)'
+                    }} />
+
+                    {/* Brand Subtitle Tag */}
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '0.6875rem',
+                      fontWeight: 600,
+                      letterSpacing: '0.25em',
+                      color: 'var(--accent)',
+                      textTransform: 'uppercase',
+                      marginBottom: '18px',
+                      fontFamily: 'var(--font-body)'
+                    }}>
+                      <Sparkles size={11} />
+                      M&H ATELIER • PORTAL
                     </div>
 
-                    <button 
-                      type="submit"
-                      disabled={authLoading}
-                      style={{
-                        background: authLoading ? 'var(--secondary)' : 'var(--accent)',
-                        color: '#FFFFFF',
-                        border: 'none',
-                        borderRadius: '12px',
-                        padding: '15px',
-                        fontSize: '0.95rem',
-                        fontWeight: 600,
-                        letterSpacing: '0.08em',
-                        textTransform: 'uppercase',
-                        cursor: authLoading ? 'not-allowed' : 'pointer',
-                        transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '10px',
-                        marginTop: '10px',
-                        boxShadow: '0 8px 20px rgba(147, 127, 99, 0.15)'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!authLoading) {
-                          e.currentTarget.style.background = 'var(--accent-hover)';
-                          e.currentTarget.style.transform = 'translateY(-1px)';
-                          e.currentTarget.style.boxShadow = '0 12px 24px rgba(147, 127, 99, 0.25)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!authLoading) {
-                          e.currentTarget.style.background = 'var(--accent)';
-                          e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = '0 8px 20px rgba(147, 127, 99, 0.15)';
-                        }
-                      }}
-                    >
-                      {authLoading ? (
-                        <>
-                          <RefreshCw size={16} className="animate-spin" />
-                          Authenticating...
-                        </>
-                      ) : (
-                        <>
-                          <span>Access Admin Console</span>
-                          <Lock size={15} />
-                        </>
-                      )}
-                    </button>
-                  </form>
-                </div>
+                    {/* Lock circle icon with dashed layout & shadow */}
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '76px',
+                      height: '76px',
+                      background: 'var(--bg-body)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '50%',
+                      marginBottom: '28px',
+                      boxShadow: '0 8px 24px rgba(0, 0, 0, 0.02), inset 0 2px 4px rgba(255, 255, 255, 0.8)',
+                      position: 'relative'
+                    }}>
+                      <div style={{
+                        position: 'absolute',
+                        inset: '4px',
+                        borderRadius: '50%',
+                        border: '1px dashed var(--accent)',
+                        opacity: 0.35
+                      }} />
+                      <Lock size={26} style={{ color: 'var(--accent)' }} />
+                    </div>
+
+                    <h2 style={{ 
+                      fontFamily: 'var(--font-heading)', 
+                      fontSize: '2.25rem', 
+                      fontWeight: 400, 
+                      margin: '0 0 8px 0',
+                      color: 'var(--primary)',
+                      letterSpacing: '0.02em',
+                      lineHeight: 1.2
+                    }}>
+                      Admin Console
+                    </h2>
+                    <p style={{ 
+                      fontFamily: 'var(--font-body)',
+                      fontSize: '0.85rem', 
+                      color: 'var(--secondary)', 
+                      lineHeight: 1.6, 
+                      marginBottom: '32px',
+                      padding: '0 8px'
+                    }}>
+                      Enter your authorized credentials to access customer details, order logs, inventory controls, and system options.
+                    </p>
+
+                    <form onSubmit={handleAdminLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                      
+                      {/* Admin Email Field */}
+                      <div style={{ textAlign: 'left' }}>
+                        <label style={{ 
+                          fontSize: '0.725rem', 
+                          fontWeight: 600, 
+                          textTransform: 'uppercase', 
+                          letterSpacing: '0.12em', 
+                          color: 'var(--secondary)', 
+                          display: 'block', 
+                          marginBottom: '8px' 
+                        }}>
+                          Admin Email
+                        </label>
+                        <div style={{
+                          position: 'relative',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}>
+                          <span style={{
+                            position: 'absolute',
+                            left: '16px',
+                            color: authEmailFocused ? 'var(--accent)' : 'var(--secondary)',
+                            transition: 'color 0.3s ease',
+                            display: 'flex',
+                            alignItems: 'center',
+                            pointerEvents: 'none'
+                          }}>
+                            <Mail size={18} />
+                          </span>
+                          <input 
+                            type="email"
+                            value={authEmail}
+                            onChange={(e) => setAuthEmail(e.target.value)}
+                            onFocus={() => setAuthEmailFocused(true)}
+                            onBlur={() => setAuthEmailFocused(false)}
+                            placeholder="admin@mhatelier.com"
+                            style={{
+                              width: '100%',
+                              padding: '14px 16px 14px 48px',
+                              borderRadius: '12px',
+                              border: authError ? '1.5px solid #EF4444' : authEmailFocused ? '1.5px solid var(--accent)' : '1px solid var(--border)',
+                              background: 'var(--bg-body)',
+                              color: 'var(--primary)',
+                              fontSize: '0.925rem',
+                              outline: 'none',
+                              transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                              boxShadow: authEmailFocused ? '0 0 0 4px rgba(147, 127, 99, 0.12)' : 'none'
+                            }}
+                            autoFocus
+                          />
+                        </div>
+                      </div>
+
+                      {/* Password Field */}
+                      <div style={{ textAlign: 'left' }}>
+                        <label style={{ 
+                          fontSize: '0.725rem', 
+                          fontWeight: 600, 
+                          textTransform: 'uppercase', 
+                          letterSpacing: '0.12em', 
+                          color: 'var(--secondary)', 
+                          display: 'block', 
+                          marginBottom: '8px' 
+                        }}>
+                          Secure Password
+                        </label>
+                        <div style={{
+                          position: 'relative',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}>
+                          <span style={{
+                            position: 'absolute',
+                            left: '16px',
+                            color: authPasswordFocused ? 'var(--accent)' : 'var(--secondary)',
+                            transition: 'color 0.3s ease',
+                            display: 'flex',
+                            alignItems: 'center',
+                            pointerEvents: 'none'
+                          }}>
+                            <Key size={18} />
+                          </span>
+                          <input 
+                            type={showPassword ? "text" : "password"}
+                            value={authPassword}
+                            onChange={(e) => setAuthPassword(e.target.value)}
+                            onFocus={() => setAuthPasswordFocused(true)}
+                            onBlur={() => setAuthPasswordFocused(false)}
+                            placeholder="••••••••"
+                            style={{
+                              width: '100%',
+                              padding: '14px 48px 14px 48px',
+                              borderRadius: '12px',
+                              border: authError ? '1.5px solid #EF4444' : authPasswordFocused ? '1.5px solid var(--accent)' : '1px solid var(--border)',
+                              background: 'var(--bg-body)',
+                              color: 'var(--primary)',
+                              fontSize: showPassword ? '0.925rem' : '1.1rem',
+                              fontFamily: showPassword ? 'var(--font-body)' : 'monospace',
+                              letterSpacing: showPassword ? 'normal' : '0.125em',
+                              outline: 'none',
+                              transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                              boxShadow: authPasswordFocused ? '0 0 0 4px rgba(147, 127, 99, 0.12)' : 'none'
+                            }}
+                          />
+                          <button 
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            style={{
+                              position: 'absolute',
+                              right: '14px',
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              color: 'var(--secondary)',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              letterSpacing: '0.05em',
+                              textTransform: 'uppercase',
+                              padding: '6px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'color 0.2s',
+                              outline: 'none'
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+                            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--secondary)')}
+                            title={showPassword ? "Hide password" : "Show password"}
+                          >
+                            {showPassword ? "Hide" : "Show"}
+                          </button>
+                        </div>
+                        
+                        {authError && (
+                          <div style={{ 
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            color: '#EF4444', 
+                            fontSize: '0.8rem', 
+                            marginTop: '12px', 
+                            padding: '10px 14px',
+                            background: 'rgba(239, 68, 68, 0.06)',
+                            borderRadius: '8px',
+                            border: '1px solid rgba(239, 68, 68, 0.15)'
+                          }}>
+                            <span style={{ display: 'inline-flex', flexShrink: 0 }}>⚠️</span>
+                            <span>{authError}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <button 
+                        type="submit"
+                        disabled={authLoading}
+                        style={{
+                          background: authLoading ? 'var(--secondary)' : 'var(--accent)',
+                          color: '#FFFFFF',
+                          border: 'none',
+                          borderRadius: '12px',
+                          padding: '15px',
+                          fontSize: '0.95rem',
+                          fontWeight: 600,
+                          letterSpacing: '0.08em',
+                          textTransform: 'uppercase',
+                          cursor: authLoading ? 'not-allowed' : 'pointer',
+                          transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '10px',
+                          marginTop: '10px',
+                          boxShadow: '0 8px 20px rgba(147, 127, 99, 0.15)'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!authLoading) {
+                            e.currentTarget.style.background = 'var(--accent-hover)';
+                            e.currentTarget.style.transform = 'translateY(-1px)';
+                            e.currentTarget.style.boxShadow = '0 12px 24px rgba(147, 127, 99, 0.25)';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!authLoading) {
+                            e.currentTarget.style.background = 'var(--accent)';
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = '0 8px 20px rgba(147, 127, 99, 0.15)';
+                          }
+                        }}
+                      >
+                        {authLoading ? (
+                          <>
+                            <RefreshCw size={16} className="animate-spin" />
+                            Authenticating...
+                          </>
+                        ) : (
+                          <>
+                            <span>Access Admin Console</span>
+                            <Lock size={15} />
+                          </>
+                        )}
+                      </button>
+                    </form>
+                  </div>
+                )}
               </div>
             ) : (
               <>
